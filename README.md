@@ -139,7 +139,7 @@ Possibilidades ainda em investigação incluem:
 
 ---------------------//----------------------
 
-Investigação de "pthread"
+> Investigação de "pthread"
 
 Um dos principais pontos encontrados foi a função:
 
@@ -169,7 +169,7 @@ A investigação agora busca descobrir:
 
 ---------------------//----------------------
 
-Referências a "WaitForEnd()"
+> Referências a "WaitForEnd()"
 
 A análise de referências no Ghidra encontrou chamadas para:
 
@@ -194,7 +194,7 @@ O próximo objetivo é analisar cada uma dessas funções e determinar qual dela
 
 ---------------------//----------------------
 
-Engenharia reversa
+> Engenharia reversa
 
 A investigação está sendo realizada principalmente através do Ghidra, analisando a biblioteca nativa:
 
@@ -223,7 +223,7 @@ Os arquivos originais do jogo não fazem parte deste repositório.
 
 ---------------------//----------------------
 
-Estudo de ARM64 / Assembly
+> Estudo de ARM64 / Assembly
 
 Além da investigação específica do crash, o projeto também serve como estudo prático de assembly ARM64.
 
@@ -250,7 +250,7 @@ Um dos objetivos é compreender o código descompilado não apenas como "código
 
 ---------------------//----------------------
 
-Metodologia
+> Metodologia
 
 A investigação segue, sempre que possível, uma abordagem incremental:
 
@@ -282,7 +282,7 @@ A intenção é evitar alterações aleatórias no aplicativo antes de compreend
 
 ---------------------//----------------------
 
-Objetivos de aprendizado
+> Objetivos de aprendizado
 
 Este projeto também funciona como um laboratório pessoal de estudos.
 
@@ -353,7 +353,7 @@ Segurança e pesquisa
 
 ---------------------//----------------------
 
-Roadmap
+> Roadmap
 
 🟢 Concluído
 
@@ -388,7 +388,7 @@ Roadmap
 
 ---------------------//----------------------
 
-Contribuições
+> Contribuições
 
 Este projeto está aberto a sugestões, correções e discussões técnicas.
 
@@ -410,7 +410,7 @@ O objetivo é aprender através da investigação e, se possível, descobrir uma
 
 ---------------------//----------------------
 
-Aviso legal
+> Aviso legal
 
 Este é um projeto independente, sem afiliação, associação ou endosso da Bandai Namco Entertainment, CyberConnect2 ou dos respectivos detentores de direitos.
 
@@ -424,7 +424,7 @@ A análise está utilizando uma cópia obtida legalmente e arquivos extraídos l
 
 ---------------------//----------------------
 
-Licença
+> Licença
 
 Os textos, documentação, scripts e demais materiais originais criados especificamente para este projeto são disponibilizados sob a licença MIT, salvo indicação em contrário.
 
@@ -432,7 +432,7 @@ A licença MIT deste repositório não concede qualquer direito sobre o jogo NAR
 
 ---------------------//----------------------
 
-Filosofia do projeto
+> Filosofia do projeto
 
 > O objetivo não é apenas fazer o jogo funcionar. O objetivo é entender por que ele não funciona.
 
