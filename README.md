@@ -205,6 +205,30 @@ Status: análise estática em andamento. A causa raiz ainda não foi identificad
 
 ---------------------//----------------------
 
+> Investigação adicional — ciclo de vida de "mmThreadHandle"
+
+A análise do assembly ARM64 permitiu aprofundar a relação entre "mmThreadHandle", "mmThread_Impl" e as operações POSIX de gerenciamento de threads.
+
+Descobertas confirmadas
+
+- O construtor de "mmThreadHandle" aloca uma estrutura "mmThread_Impl" e armazena seu ponteiro no início do handle.
+- "mmThread_Impl::Start()" passa o endereço do campo "this + 0x10" para "pthread_create()".
+- "mmThread_Impl::WaitForEnd()" utiliza o valor armazenado nesse mesmo campo na chamada a "pthread_join()".
+- O destrutor de "mmThreadHandle" destrói a implementação e libera sua memória, sem chamar diretamente "pthread_join()".
+- "mmRenderManager_Vulkan" mantém dois handles de thread, localizados em "this + 0x3298" e "this + 0x3320". Sua rotina de finalização tenta aguardar as threads associadas a esses handles.
+
+Nova linha de investigação: estado detached
+
+Em "mmThread_Impl::Start()", foi identificada uma ramificação que chama "pthread_attr_setdetachstate()" antes de "pthread_create()".
+
+Ainda é necessário determinar qual parâmetro controla essa ramificação e se ela é utilizada na criação das threads do renderizador Vulkan. Também não foi demonstrado que uma thread criada como detached seja posteriormente passada a "pthread_join()" no caminho que produz o crash.
+
+Status
+
+O ciclo de vida dos handles está parcialmente mapeado. A relação entre o estado da thread, o retorno de "pthread_create()" e a falha observada em "pthread_join()" continua em investigação. A causa raiz ainda não foi confirmada e nenhuma correção foi implementada.
+
+---------------------//----------------------
+
 > Referências e fluxo de execução de "WaitForEnd()"
 
 Durante a análise estática de libultimateninjastorm.so, foram identificadas funções relacionadas à criação, à espera e à destruição de threads.
@@ -444,7 +468,7 @@ Segurança e pesquisa
 - [x] Localizar "libultimateninjastorm.so"
 - [x] Carregar a biblioteca no Ghidra
 - [x] Localizar "mmThread_Impl::WaitForEnd()"
-- [x] Identificar o acesso a "this + 0x10"
+- [x] Identificar o acesso a "this + 0x10" em "WaitForEnd()"
 - [x] Encontrar referências a "WaitForEnd()"
 - [x] Localizar "pthread_create()"
 - [x] Identificar o campo utilizado como identificador na chamada a "pthread_join()"
@@ -457,32 +481,40 @@ Segurança e pesquisa
 - [x] Localizar e analisar "mmThread_Impl::_Copy(...)"
 - [x] Confirmar que "_Copy(...)" copia o campo "this + 0x10" do objeto de origem para o objeto de destino
 - [x] Localizar e analisar "mmThread_Impl::SetAffinity(...)"
-- [x] Confirmar que "SetAffinity()" lê os 32 bits inferiores de "this + 0x10" e os utiliza como argumento de identificação na chamada a "sched_setaffinity()"
-- [x] Analisar a implementação de mmRenderManager_Vulkan::Finalize().
-Identificar as duas chamadas a mmThread::WaitForEnd() presentes nessa função.
-- [x] Registrar os objetos associados às esperas, em this + 0x3298 e this + 0x3320.
+- [x] Confirmar que "SetAffinity()" utiliza os 32 bits inferiores de "this + 0x10" na chamada a "sched_setaffinity()"
+- [x] Analisar "mmRenderManager_Vulkan::Finalize()"
+- [x] Identificar as duas chamadas a "mmThread::WaitForEnd()" em "Finalize()"
+- [x] Identificar os handles associados às esperas, em "this + 0x3298" e "this + 0x3320"
+- [x] Localizar o construtor de "mmThreadHandle"
+- [x] Confirmar que o construtor aloca uma estrutura "mmThread_Impl" e armazena seu ponteiro no handle
+- [x] Analisar o destrutor de "mmThreadHandle" e confirmar que ele destrói e libera a implementação associada
+- [x] Analisar o destrutor de "mmThread_Impl" e verificar que ele não chama diretamente "pthread_join()" no trecho examinado
+- [x] Identificar que "mmThread_Impl::Start()" possui uma ramificação que configura o estado da thread por meio de "pthread_attr_setdetachstate()"
 
 🟡 Em andamento
 
-- [ ] Investigar o tratamento do retorno de "pthread_create()"
+- [ ] Rastrear o parâmetro que controla a ramificação de "pthread_attr_setdetachstate()" em "Start()"
+- [ ] Verificar se as threads do renderizador Vulkan são criadas como joinable ou detached
+- [ ] Investigar o tratamento dos retornos de "pthread_create()" e das funções de configuração dos atributos
 - [ ] Verificar se o identificador em "this + 0x10" é inicializado ou alterado em outros pontos
-- [ ] Investigar se o valor armazenado em "this + 0x10" pode ser usado com segurança tanto por "pthread_join()" quanto por "sched_setaffinity()"
-- [ ] Investigar se copiar o campo "this + 0x10" entre objetos pode gerar problemas no ciclo de vida das threads
-- [ ] Compreender o ciclo de vida da thread: criação, espera e destruição
+- [ ] Investigar se o valor armazenado em "this + 0x10" pode ser utilizado corretamente nas chamadas a "pthread_join()" e "sched_setaffinity()"
+- [ ] Investigar se copiar o campo "this + 0x10" entre objetos pode afetar o ciclo de vida das threads
+- [ ] Compreender o ciclo de vida das threads: criação, espera e destruição
 - [ ] Relacionar as funções de gerenciamento de threads à finalização do renderizador Vulkan
 - [ ] Investigar a relação entre "pthread_create()", "sched_setaffinity()" e a utilização posterior do identificador
-- [ ] Determinar por que o identificador se torna inválido
-- [ ] Identificar a causa raiz do crash
-- [ ] Testar hipóteses de correção
+- [ ] Determinar qual das duas esperas em "Finalize()" está relacionada ao crash histórico
+- [ ] Determinar por que o identificador passado a "pthread_join()" é considerado inválido
+- [ ] Identificar e comprovar a causa raiz do crash
+- [ ] Avaliar hipóteses de correção com base nas evidências obtidas
 
 🔴 Futuro
 
 - [ ] Desenvolver uma possível correção
 - [ ] Testar a correção em ambiente controlado
-- [ ] Documentar o processo completo
-- [ ] Criar ferramentas auxiliares próprias
-- [ ] Investigar outras incompatibilidades com Android moderno
-- [ ] Avaliar possibilidades de manutenção/compatibilidade do aplicativo
+- [ ] Documentar o processo completo e as evidências
+- [ ] Criar ferramentas auxiliares próprias para análise
+- [ ] Investigar outras incompatibilidades com versões modernas do Android
+- [ ] Avaliar possibilidades de manutenção e compatibilidade do aplicativo
 
 ---------------------//----------------------
 
