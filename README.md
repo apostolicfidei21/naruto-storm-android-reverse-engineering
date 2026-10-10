@@ -2,7 +2,7 @@ NARUTO: Ultimate Ninja STORM — Investigação Android
 
 > Investigação, engenharia reversa e estudo técnico da versão Android de NARUTO: Ultimate Ninja STORM.
 
-Status: 🟡 Investigação em andamento, fase inicial
+Status: 🟡 Investigação em andamento, progresso significativo
 
 ---------------------//----------------------
 
@@ -30,15 +30,13 @@ A investigação está sendo realizada utilizando uma cópia oficial e legalment
 
 Versão do jogo analisada:
 
-- Versão: 1.2.9
+- Versão: 1.2.10
 - Distribuição: Google Play Store
 - Cópia: oficial e adquirida legalmente
 - Arquitetura: ARM64
 - Dados do jogo: incluídos no próprio APK
 
 A versão analisada possui os dados do jogo incorporados ao próprio APK. Essa forma de instalação está sendo utilizada porque a inicialização responsável pela instalação ou carregamento dos dados separadamente não está sendo concluída devido ao problema investigado.
-
-//OBS.: o jogo atualizou recentemente para a versão 1.2.10, mas continuo usando a versão anterior, uma vez que o problema persiste independente da versão e seria muito trabalhoso replicar toda a data novamente cada vez que o jogo atualizasse, então preferi essa modo de proceder. Se conseguir encontrar uma solução para esta versão analisada, é possível que ela seja replicada em outras posteriores//
 
 Dispositivo principal de teste:
 
@@ -57,25 +55,17 @@ O objetivo é documentar e reproduzir o comportamento dessa versão específica 
 
 > Ferramentas e Tecnologias
 
-As ferramentas abaixo estão sendo utilizadas ou serão utilizadas ao longo da investigação, de acordo com as necessidades de cada etapa.
+As ferramentas utilizadas nesta investigação incluem:
 
-Ferramentas já utilizadas
+- Android: dispositivo utilizado para executar o jogo e realizar os testes.
+- Termux: ambiente de terminal utilizado diretamente no Android para executar comandos e analisar a biblioteca nativa.
+- LLVM Objdump ("llvm-objdump"): utilizado para desassemblar a biblioteca ARM64 e examinar instruções de máquina.
+- GNU "readelf": utilizado para examinar informações do arquivo ELF, símbolos e metadados da biblioteca.
+- Ghidra: utilizado anteriormente na análise estática da biblioteca, na identificação de funções e na investigação do fluxo de execução.
+- ADB (Android Debug Bridge): utilizado na etapa de extração dos arquivos do jogo e na investigação inicial do problema.
+- GitHub: utilizado para documentar publicamente a investigação, registrar o progresso e organizar os resultados.
 
-- ADB (Android Debug Bridge) — comunicação com o dispositivo Android, coleta de informações e obtenção de arquivos do aplicativo.
-- Android SDK Platform-Tools — conjunto de ferramentas utilizado principalmente para executar comandos ADB.
-- Ghidra — análise estática da biblioteca nativa, incluindo desmontagem, decompilação, análise de referências e investigação do fluxo de execução.
-- Android Logcat — captura e análise dos logs gerados pelo sistema e pelo aplicativo durante a inicialização e o crash.
-
-Ferramentas que poderão ser utilizadas
-
-- LLDB — debugging de código nativo e análise da execução em tempo real.
-- Android NDK — estudo e desenvolvimento de código nativo para Android.
-- IDA / ferramentas alternativas de engenharia reversa — eventualmente utilizadas para comparação de resultados com o Ghidra.
-- Ferramentas de análise ELF — inspeção das bibliotecas nativas e de suas estruturas.
-- Ferramentas de compilação C/C++ — desenvolvimento de testes e possíveis ferramentas auxiliares.
-- Git / GitHub — versionamento e documentação da investigação.
-
-A utilização de cada ferramenta dependerá da evolução da investigação, com outras podendo ainda ser adicionadas. O objetivo é utilizar o mínimo necessário em cada etapa e compreender o papel de cada ferramenta no processo, em vez de apenas aplicá-las como uma "caixa-preta".
+As ferramentas são empregadas com finalidade educacional, para compreender o comportamento da aplicação e investigar a origem do crash.
 
 ---------------------//----------------------
 
@@ -169,57 +159,110 @@ A investigação agora busca descobrir:
 
 ---------------------//----------------------
 
-> Referências a "WaitForEnd()"
+> Progresso da investigação — análise de threads
 
-A análise de referências no Ghidra encontrou chamadas para:
+A investigação avançou para a análise direta do assembly ARM64 da biblioteca "libultimateninjastorm.so", utilizando ferramentas disponíveis no Termux, diretamente em um dispositivo Android.
 
-mmThread_Impl::WaitForEnd()
+Além de localizar "mmThread_Impl::WaitForEnd()", foi possível examinar funções relacionadas à criação, à espera e à destruição de threads.
 
-Entre elas:
+Entre as funções analisadas estão:
 
-00bc50c4
-010b5d98
-010b5df4
-0128262c
+- "mmThread_Impl::Start()";
+- "nummThreadSimpleThreadCreate()";
+- "nummThreadSimpleThreadWaitForEnd()";
+- "nuccThread::~nuccThread()".
 
-As referências:
+> Descobertas até o momento
 
-010b5d98
-010b5df4
-0128262c
+1. Espera pela thread
 
-são atualmente alguns dos principais pontos de interesse, pois podem representar chamadas externas à função durante diferentes caminhos de execução.
+A função "mmThread_Impl::WaitForEnd()" carrega um valor armazenado em "this + 0x10" e o utiliza na chamada a "pthread_join()".
 
-O próximo objetivo é analisar cada uma dessas funções e determinar qual delas está relacionada ao caminho de finalização do renderer Vulkan.
+2. Condição para aguardar a thread
+
+A função "nummThreadSimpleThreadWaitForEnd()" verifica o campo "+0x2c" do contexto. Quando esse campo é zero, retorna sem chamar "WaitForEnd()"; caso contrário, encaminha a execução para essa função.
+
+3. Relação entre criação e espera
+
+A análise de "mmThread_Impl::Start()" revelou uma chamada a "pthread_create()". No caminho de instruções examinado, não foi identificada uma verificação explícita do retorno dessa chamada antes da continuação do fluxo.
+
+Já a função "nummThreadSimpleThreadCreate()" apresenta um comportamento que merece investigação: no caminho analisado, ela retorna "1" e marca o contexto como criado após chamar "Start()".
+
+> Hipótese em investigação
+
+Esses elementos levantam a possibilidade de que uma falha na criação de uma thread não seja devidamente tratada e resulte, posteriormente, em uma tentativa de aguardar uma thread inválida.
+
+Entretanto, essa hipótese ainda não foi confirmada. Não foi demonstrado que "pthread_create()" falha durante a execução do jogo, nem que essa possível falha seja a causa direta do crash.
+
+> Próximos passos
+
+- Analisar "mmRenderManager_Vulkan::Finalize()".
+- Verificar a relação entre a finalização do renderizador e as funções de espera identificadas.
+- Investigar os caminhos de sucesso e falha de "pthread_create()".
+- Determinar se a hipótese proposta corresponde ao caminho real do crash.
+
+Status: análise estática em andamento. A causa raiz ainda não foi identificada e nenhuma correção foi implementada.
 
 ---------------------//----------------------
 
-> Engenharia reversa
+> Referências e fluxo de execução de "WaitForEnd()"
 
-A investigação está sendo realizada principalmente através do Ghidra, analisando a biblioteca nativa:
+Durante a análise estática de libultimateninjastorm.so, foram identificadas funções relacionadas à criação, à espera e à destruição de threads.
 
-libultimateninjastorm.so
+Funções identificadas:
+mmThread_Impl::WaitForEnd() — endereço 0x0abe8cc.
+nummThreadSimpleThreadWaitForEnd() — endereço 0x0abe8bc.
+mmThread_Impl::Start() — endereço 0x09f6ec4.
+nummThreadSimpleThreadCreate() — endereço 0x09f6e28.
+nuccThread::~nuccThread() — endereço 0x0964384.
 
-O arquivo é uma biblioteca ELF ARM64 utilizada pelo aplicativo Android.
+Os endereços correspondem à biblioteca analisada e podem variar entre versões ou compilações diferentes.
 
-Entre os elementos analisados estão:
+> Fluxo de espera
 
-- ".text";
-- ".rodata";
-- ".data";
-- ".bss";
-- ".dynsym";
-- ".dynstr";
-- ".rela.dyn";
-- ".rela.plt";
-- ".got";
-- ".plt";
-- informações de unwind;
-- símbolos e referências;
-- código ARM64/AArch64;
-- chamadas para funções externas.
+A função nummThreadSimpleThreadWaitForEnd() verifica o campo +0x2c do contexto. Se o valor for zero, retorna sem chamar mmThread_Impl::WaitForEnd(). Caso contrário, encaminha a execução para essa função.
 
-Os arquivos originais do jogo não fazem parte deste repositório.
+Por sua vez, mmThread_Impl::WaitForEnd() carrega o identificador armazenado em this + 0x10 e o utiliza na chamada a pthread_join().
+
+> Relação com a criação da thread
+
+A função mmThread_Impl::Start() contém uma chamada a pthread_create(), enquanto nummThreadSimpleThreadCreate() apresenta um caminho no qual retorna 1 e marca o contexto como criado após chamar Start().
+
+Essa relação levanta uma hipótese: uma falha na criação da thread poderia não ser devidamente propagada e, posteriormente, resultar em uma tentativa de aguardar uma thread inválida.
+
+Entretanto, ainda não foi demonstrado que essa sequência ocorre durante o crash observado. Também não foi confirmada a relação direta entre esse fluxo e a finalização do renderizador Vulkan.
+Próxima investigação
+
+O próximo passo é analisar mmRenderManager_Vulkan::Finalize() e verificar como a finalização do renderizador se relaciona com as funções de espera identificadas.
+
+Status: fluxo parcial mapeado; causa raiz ainda não confirmada.
+---------------------//----------------------
+
+> Engenharia Reversa
+
+A investigação utiliza técnicas de engenharia reversa para compreender o comportamento interno da versão Android de Naruto Shippuden: Ultimate Ninja Storm e investigar um problema que impede o jogo de iniciar corretamente.
+
+O trabalho concentra-se na análise estática da biblioteca nativa "libultimateninjastorm.so", compilada para a arquitetura ARM64 (AArch64).
+
+> Atividades realizadas
+
+- Extração e identificação dos arquivos da aplicação.
+- Análise da estrutura do binário ELF e de sua tabela de símbolos.
+- Identificação e desassemblagem de funções relacionadas ao gerenciamento de threads.
+- Investigação de "mmThread_Impl::WaitForEnd()" e de sua chamada a "pthread_join()".
+- Análise parcial das funções responsáveis pela criação, espera e destruição de threads.
+- Exame de trechos do fluxo de execução relacionados ao problema registrado no crash.
+- Documentação das descobertas, hipóteses e questões ainda não resolvidas.
+
+> Estado atual
+
+A análise identificou funções e relações relevantes para investigar o erro relacionado a um identificador de thread inválido.
+
+Uma das hipóteses em estudo é que uma falha na criação de uma thread não seja devidamente tratada antes de uma tentativa posterior de aguardar essa thread. Ainda não foi comprovado que essa sequência ocorre durante o crash.
+
+A investigação prossegue com a análise do fluxo de finalização do renderizador Vulkan, buscando estabelecer uma relação entre as funções identificadas e a pilha de execução do crash.
+
+Até o momento, o trabalho consiste principalmente em análise estática. A causa raiz ainda não foi confirmada e nenhuma correção foi implementada.
 
 ---------------------//----------------------
 
@@ -353,7 +396,7 @@ Segurança e pesquisa
 
 ---------------------//----------------------
 
-> Roadmap
+> «Roadmap»
 
 🟢 Concluído
 
@@ -366,13 +409,16 @@ Segurança e pesquisa
 - [x] Localizar "mmThread_Impl::WaitForEnd()"
 - [x] Identificar o acesso a "this + 0x10"
 - [x] Encontrar referências a "WaitForEnd()"
+- [x] Localizar "pthread_create()"
+- [x] Identificar o campo utilizado como identificador na chamada a "pthread_join()"
 
 🟡 Em andamento
 
 - [ ] Analisar os principais chamadores de "WaitForEnd()"
-- [ ] Identificar a estrutura de "mmThread_Impl"
-- [ ] Localizar "pthread_create()"
-- [ ] Descobrir onde o "pthread_t" é armazenado
+- [ ] Aprofundar a análise da estrutura de "mmThread_Impl"
+- [ ] Investigar o tratamento do retorno de "pthread_create()"
+- [ ] Compreender o ciclo de vida da thread: criação, espera e destruição
+- [ ] Relacionar as funções de gerenciamento de threads à finalização do renderizador Vulkan
 - [ ] Determinar por que o identificador se torna inválido
 - [ ] Identificar a causa raiz do crash
 - [ ] Testar hipóteses de correção
@@ -432,11 +478,7 @@ A licença MIT deste repositório não concede qualquer direito sobre o jogo NAR
 
 ---------------------//----------------------
 
-> Filosofia do projeto
-
-> O objetivo não é apenas fazer o jogo funcionar. O objetivo é entender por que ele não funciona.
-
-Este projeto começou com um jogo que não inicia.
+Enfim, como podem ver, este projeto de estudo começou com um jogo que não inicia.
 
 A intenção é terminar com uma compreensão muito maior de programação, sistemas, Android, engenharia reversa, debugging e desenvolvimento de software.
 
