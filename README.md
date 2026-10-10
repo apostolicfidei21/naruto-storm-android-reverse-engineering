@@ -396,7 +396,7 @@ Segurança e pesquisa
 
 ---------------------//----------------------
 
-> «Roadmap»
+> Roadmap
 
 🟢 Concluído
 
@@ -417,6 +417,10 @@ Segurança e pesquisa
 - [x] Identificar a chamada subsequente a "sched_setaffinity()"
 - [x] Analisar o construtor "mmThread_ImplC2Ev()" e verificar que ele não apresenta uma escrita explícita em "this + 0x10" no trecho examinado
 - [x] Identificar que não há verificação imediata visível do retorno de "pthread_create()" no trecho analisado de "Start()"
+- [x] Localizar e analisar "mmThread_Impl::_Copy(...)"
+- [x] Confirmar que "_Copy(...)" copia o campo "this + 0x10" do objeto de origem para o objeto de destino
+- [x] Localizar e analisar "mmThread_Impl::SetAffinity(...)"
+- [x] Confirmar que "SetAffinity()" lê os 32 bits inferiores de "this + 0x10" e os utiliza como argumento de identificação na chamada a "sched_setaffinity()"
 
 🟡 Em andamento
 
@@ -424,6 +428,8 @@ Segurança e pesquisa
 - [ ] Aprofundar a análise da estrutura de "mmThread_Impl"
 - [ ] Investigar o tratamento do retorno de "pthread_create()"
 - [ ] Verificar se o identificador em "this + 0x10" é inicializado ou alterado em outros pontos
+- [ ] Investigar se o valor armazenado em "this + 0x10" pode ser usado com segurança tanto por "pthread_join()" quanto por "sched_setaffinity()"
+- [ ] Investigar se copiar o campo "this + 0x10" entre objetos pode gerar problemas no ciclo de vida das threads
 - [ ] Compreender o ciclo de vida da thread: criação, espera e destruição
 - [ ] Relacionar as funções de gerenciamento de threads à finalização do renderizador Vulkan
 - [ ] Investigar a relação entre "pthread_create()", "sched_setaffinity()" e a utilização posterior do identificador
