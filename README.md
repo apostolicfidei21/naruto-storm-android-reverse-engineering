@@ -299,6 +299,52 @@ Status: fluxo de finalização parcialmente mapeado; causa raiz ainda não confi
 
 ---------------------//----------------------
 
+Resultados recentes: falha na inicialização gráfica
+
+Data: 10 de outubro de 2026
+
+Evidência em tempo de execução
+
+Durante a inicialização do jogo, foi registrado o seguinte erro fatal:
+
+"invalid pthread_t 0x2e79616c702e6469 passed to pthread_join"
+
+O processo foi encerrado por "SIGABRT". O backtrace identifica a seguinte cadeia de chamadas:
+
+"pthread_join()"
+→ "mmThread_Impl::WaitForEnd()"
+→ "mmRenderManager_Vulkan::Finalize()"
+→ "mmRenderManager_Vulkan::~mmRenderManager_Vulkan()"
+→ "mmGPUDevice_Android::Finalize()"
+→ "mmGPUDevice_Android::InitializeRenderSystem()"
+
+O ponto de falha em "Finalize()" corresponde à primeira chamada a "WaitForEnd()" nessa rotina, relacionada ao primeiro identificador de thread do renderizador Vulkan.
+
+Resultados da análise estática
+
+- "mmThread_Impl::WaitForEnd()" carrega o identificador de thread do objeto e o encaminha para "pthread_join()" sem uma verificação de validade visível nesse trecho.
+- "mmThread_Impl::Start()" chama "pthread_create()", mas não verifica explicitamente seu código de retorno antes de continuar a execução.
+- O endereço de retorno "0xD37A10" pertence a um caminho de tratamento de exceção em "mmGPUDevice_Android::InitializeRenderSystem()", que executa uma rotina de limpeza antes de retornar um erro.
+
+Hipóteses ainda em investigação
+
+1. Falha na criação de uma thread seguida de uma tentativa de aguardá-la.
+2. Inconsistência no estado do renderizador durante a limpeza após uma exceção.
+3. Corrupção ou sobrescrita do identificador armazenado no objeto de thread.
+
+Essas hipóteses ainda não foram confirmadas. A exceção que inicia a limpeza e a origem exata do identificador inválido continuam desconhecidas.
+
+Próximos passos
+
+- Identificar a operação que inicia o caminho de tratamento de exceção.
+- Verificar a sequência de inicialização das threads do renderizador Vulkan.
+- Comparar os diferentes pontos de falha observados nos logs.
+- Só então avaliar uma possível correção e sua viabilidade.
+
+Conclusão provisória: a falha foi localizada no encerramento de uma thread durante a limpeza da inicialização gráfica. Isso identifica o caminho imediato do crash, mas não estabelece ainda sua causa original.
+
+---------------------//----------------------
+
 > Engenharia Reversa
 
 A investigação utiliza técnicas de engenharia reversa para compreender o comportamento interno da versão Android de Naruto Shippuden: Ultimate Ninja Storm e investigar um problema que impede o jogo de iniciar corretamente.
