@@ -536,6 +536,14 @@ Segurança e pesquisa
 - [x] Analisar o destrutor de "mmThreadHandle" e confirmar que ele destrói e libera a implementação associada
 - [x] Analisar o destrutor de "mmThread_Impl" e verificar que ele não chama diretamente "pthread_join()" no trecho examinado
 - [x] Identificar que "mmThread_Impl::Start()" possui uma ramificação que configura o estado da thread por meio de "pthread_attr_setdetachstate()"
+- [x] Analisar um novo "logcat" e localizar a mensagem "invalid pthread_t ... passed to pthread_join"
+- [x] Identificar "SIGABRT" no crash recente, ocorrido durante a inicialização do aplicativo
+- [x] Rastrear o backtrace do crash recente até "mmRenderManager_Vulkan::Finalize()"
+- [x] Relacionar o crash recente à primeira chamada a "WaitForEnd()" em "Finalize()", associada ao handle em "this + 0x3298"
+- [x] Identificar que o valor inválido registrado no crash recente difere do valor observado em um crash anterior
+- [x] Localizar a chamada a "pthread_create()" que recebe o endereço de "this + 0x10" como campo de saída em "Start()"
+- [x] Observar que "Start()" continua para a chamada a "sched_setaffinity()" sem uma verificação explícita e visível do retorno de "pthread_create()" no trecho analisado
+- [x] Identificar o caminho de limpeza do renderizador Vulkan presente no backtrace recente
 
 🟡 Em andamento
 
@@ -548,8 +556,12 @@ Segurança e pesquisa
 - [ ] Compreender o ciclo de vida das threads: criação, espera e destruição
 - [ ] Relacionar as funções de gerenciamento de threads à finalização do renderizador Vulkan
 - [ ] Investigar a relação entre "pthread_create()", "sched_setaffinity()" e a utilização posterior do identificador
-- [ ] Determinar qual das duas esperas em "Finalize()" está relacionada ao crash histórico
 - [ ] Determinar por que o identificador passado a "pthread_join()" é considerado inválido
+- [ ] Comparar os crashes registrados e determinar em quais condições cada chamada a "WaitForEnd()" falha
+- [ ] Verificar a sequência de inicialização do renderizador Vulkan e a criação de suas duas threads
+- [ ] Identificar qual falha ou exceção leva o aplicativo ao caminho de limpeza
+- [ ] Verificar se a limpeza pode executar "WaitForEnd()" antes de a thread correspondente ter sido criada com sucesso
+- [ ] Investigar a possibilidade de identificador não inicializado, obsoleto ou corrompido
 - [ ] Identificar e comprovar a causa raiz do crash
 - [ ] Avaliar hipóteses de correção com base nas evidências obtidas
 
