@@ -411,14 +411,22 @@ Segurança e pesquisa
 - [x] Encontrar referências a "WaitForEnd()"
 - [x] Localizar "pthread_create()"
 - [x] Identificar o campo utilizado como identificador na chamada a "pthread_join()"
+- [x] Confirmar que a biblioteca analisada corresponde ao Build ID de um dos crashes registrados em 05/10/2026
+- [x] Localizar "mmThread_Impl::Start()"
+- [x] Identificar a chamada a "pthread_create()" dentro de "Start()"
+- [x] Identificar a chamada subsequente a "sched_setaffinity()"
+- [x] Analisar o construtor "mmThread_ImplC2Ev()" e verificar que ele não apresenta uma escrita explícita em "this + 0x10" no trecho examinado
+- [x] Identificar que não há verificação imediata visível do retorno de "pthread_create()" no trecho analisado de "Start()"
 
 🟡 Em andamento
 
 - [ ] Analisar os principais chamadores de "WaitForEnd()"
 - [ ] Aprofundar a análise da estrutura de "mmThread_Impl"
 - [ ] Investigar o tratamento do retorno de "pthread_create()"
+- [ ] Verificar se o identificador em "this + 0x10" é inicializado ou alterado em outros pontos
 - [ ] Compreender o ciclo de vida da thread: criação, espera e destruição
 - [ ] Relacionar as funções de gerenciamento de threads à finalização do renderizador Vulkan
+- [ ] Investigar a relação entre "pthread_create()", "sched_setaffinity()" e a utilização posterior do identificador
 - [ ] Determinar por que o identificador se torna inválido
 - [ ] Identificar a causa raiz do crash
 - [ ] Testar hipóteses de correção
