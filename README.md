@@ -238,6 +238,43 @@ O próximo passo é analisar mmRenderManager_Vulkan::Finalize() e verificar como
 Status: fluxo parcial mapeado; causa raiz ainda não confirmada.
 ---------------------//----------------------
 
+> Análise de "mmRenderManager_Vulkan::Finalize()"
+
+Novo resultado da análise estática — 10/10/2026
+
+Foi examinada a implementação de "mmRenderManager_Vulkan::Finalize()" na biblioteca "libultimateninjastorm.so", correspondente ao Build ID associado ao registro de crash de 05/10/2026.
+
+A análise identificou duas chamadas a "mmThread::WaitForEnd(mmThreadHandle&)" durante a finalização do renderizador Vulkan:
+
+- Endereço "0x11ae10c": aguarda a thread associada ao objeto localizado em "this + 0x3298".
+- Endereço "0x11ae134": aguarda a thread associada ao objeto localizado em "this + 0x3320".
+
+Antes da primeira espera, a função sinaliza uma condição de sincronização em "this + 0x32A0". Entre as duas esperas, modifica um byte de estado e sinaliza condições associadas a "this + 0x3300" e "this + 0x3308".
+
+Essas instruções demonstram que a finalização do renderizador coordena e aguarda duas threads distintas antes de prosseguir com a liberação dos recursos gráficos.
+
+A relação com o crash é relevante porque a pilha de execução registrada contém "mmRenderManager_Vulkan::Finalize()", "mmThread_Impl::WaitForEnd()" e "pthread_join()", acompanhados da mensagem "invalid pthread_t".
+
+O que ainda não foi determinado
+
+- Qual das duas chamadas a "WaitForEnd()" está associada à falha registrada.
+- Como o identificador inválido chegou ao "pthread_join()".
+- Se houve falha na criação da thread, corrupção ou sobrescrita do identificador, ou algum problema no ciclo de vida da thread.
+- Se a falha é consequência de um erro anterior durante a inicialização do renderizador.
+
+A análise do código não demonstra, por si só, que o Vulkan seja a causa raiz. Também não comprova que a hipótese de falha no tratamento do retorno de "pthread_create()" explique o crash.
+
+Próximos passos
+
+1. Rastrear a inicialização e a criação das threads associadas aos objetos "this + 0x3298" e "this + 0x3320".
+2. Identificar os caminhos que inicializam e modificam os respectivos identificadores de thread.
+3. Determinar qual chamada de espera corresponde ao caminho da falha.
+4. Confrontar os resultados com o backtrace e os metadados do crash registrado.
+
+Status: fluxo de finalização parcialmente mapeado; causa raiz ainda não confirmada; nenhuma correção implementada.
+
+---------------------//----------------------
+
 > Engenharia Reversa
 
 A investigação utiliza técnicas de engenharia reversa para compreender o comportamento interno da versão Android de Naruto Shippuden: Ultimate Ninja Storm e investigar um problema que impede o jogo de iniciar corretamente.
@@ -421,11 +458,12 @@ Segurança e pesquisa
 - [x] Confirmar que "_Copy(...)" copia o campo "this + 0x10" do objeto de origem para o objeto de destino
 - [x] Localizar e analisar "mmThread_Impl::SetAffinity(...)"
 - [x] Confirmar que "SetAffinity()" lê os 32 bits inferiores de "this + 0x10" e os utiliza como argumento de identificação na chamada a "sched_setaffinity()"
+- [x] Analisar a implementação de mmRenderManager_Vulkan::Finalize().
+Identificar as duas chamadas a mmThread::WaitForEnd() presentes nessa função.
+- [x] Registrar os objetos associados às esperas, em this + 0x3298 e this + 0x3320.
 
 🟡 Em andamento
 
-- [ ] Analisar os principais chamadores de "WaitForEnd()"
-- [ ] Aprofundar a análise da estrutura de "mmThread_Impl"
 - [ ] Investigar o tratamento do retorno de "pthread_create()"
 - [ ] Verificar se o identificador em "this + 0x10" é inicializado ou alterado em outros pontos
 - [ ] Investigar se o valor armazenado em "this + 0x10" pode ser usado com segurança tanto por "pthread_join()" quanto por "sched_setaffinity()"
