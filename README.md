@@ -41,13 +41,13 @@ A versão analisada possui os dados do jogo incorporados ao próprio APK. Essa f
 Dispositivo principal de teste:
 
 - Samsung Galaxy S24 FE
-- Android 15
+- Android 16
 - ARM64 / AArch64
 - Samsung Exynos 2400e
 - GPU Samsung Xclipse 940
 - 8 GB de RAM
 - Vulkan 1.3
-- One UI 7
+- One UI 8.5
 
 O objetivo é documentar e reproduzir o comportamento dessa versão específica do aplicativo em um ambiente Android moderno, mantendo as condições de teste o mais consistentes possível.
 
